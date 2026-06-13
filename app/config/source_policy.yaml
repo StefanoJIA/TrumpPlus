@@ -1,0 +1,29 @@
+allowed_sources:
+  - name: sample-manual-public-archive
+    domains:
+      - example.org
+    allow_manual_input: true
+  - name: sample-public-archive-json
+    domains:
+      - example.org
+    allow_manual_input: false
+allowed_public_archives:
+  - sample-public-archive-json
+manual_review_required_sources:
+  - sample-manual-public-archive
+  - sample-public-archive-json
+blocked_sources:
+  - truthsocial.com
+  - www.truthsocial.com
+blocked_domains:
+  - truthsocial.com
+  - www.truthsocial.com
+max_excerpt_chars: 500
+max_manual_excerpt_chars: 500
+require_source_url: true
+require_archive_url_when_available: true
+require_archive_url_for_archive_adapters: true
+manual_input_rules:
+  require_source_url: true
+  require_human_review: true
+  default_terms_status: manual_review_required

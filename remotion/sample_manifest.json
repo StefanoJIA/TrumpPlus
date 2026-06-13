@@ -1,0 +1,50 @@
+{
+  "brief_id": 1,
+  "title": "Daily Truth Brief sample",
+  "duration_target_seconds": 60,
+  "aspect_ratio": "9:16",
+  "script_segments": [
+    {
+      "index": 1,
+      "text": "Sample narration segment.",
+      "duration_seconds": 12
+    }
+  ],
+  "subtitle_items": [
+    {
+      "index": 1,
+      "start_seconds": 0,
+      "end_seconds": 3,
+      "text": "Sample subtitle"
+    }
+  ],
+  "visual_cards": [
+    {
+      "scene_type": "information_card",
+      "duration_seconds": 12,
+      "image_path": "cover.png",
+      "subtitle_range": [1, 1]
+    }
+  ],
+  "source_cards": [
+    {
+      "source_id": "S1",
+      "url": "https://example.org/archive/sample",
+      "type": "post_or_archive"
+    }
+  ],
+  "safety_labels": [
+    "信息整理卡 / AI 生成示意图",
+    "No fake screenshots",
+    "No voice impersonation",
+    "No auto publishing"
+  ],
+  "output_files": {
+    "manifest": "manifest.json",
+    "script": "script.txt",
+    "subtitles_srt": "subtitles.srt",
+    "subtitles_json": "subtitles.json",
+    "cover": "cover.png"
+  }
+}
+

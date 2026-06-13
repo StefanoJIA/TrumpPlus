@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daily Truth Brief Safety Review",
+  "type": "object",
+  "required": ["overall_status", "blocking_reasons", "warnings", "rules", "human_review_required", "human_approved"],
+  "properties": {
+    "overall_status": {"type": "string", "enum": ["passed", "warning", "blocked"]},
+    "blocking_reasons": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "passed", "severity", "message", "evidence"],
+        "properties": {
+          "rule_id": {"type": "string"},
+          "passed": {"type": "boolean"},
+          "severity": {"type": "string", "enum": ["info", "warning", "blocking"]},
+          "message": {"type": "string"},
+          "evidence": {"type": "object"}
+        }
+      }
+    },
+    "human_review_required": {"type": "boolean", "const": true},
+    "human_approved": {"type": "boolean"}
+  }
+}
+

@@ -1,0 +1,20 @@
+{
+  "sample_data": true,
+  "evidence": [
+    {
+      "claim_id": null,
+      "source_name": "Sample official evidence",
+      "source_url": "https://example.org/evidence/sample-official-001",
+      "archive_url": "https://example.org/evidence/archive/sample-official-001",
+      "publisher_type": "official",
+      "reliability_tier": "high",
+      "retrieved_at": "2026-06-12T12:00:00Z",
+      "terms_status": "allowed",
+      "excerpt": "SAMPLE EVIDENCE: Official figures are scheduled for review by public agencies.",
+      "summary": "Sample local JSON evidence for testing evidence pack generation.",
+      "supports_claim": "contextual",
+      "confidence": 0.75,
+      "reviewer_note": "Sample evidence only."
+    }
+  ]
+}

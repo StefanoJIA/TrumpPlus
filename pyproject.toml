@@ -1,0 +1,30 @@
+[project]
+name = "daily-truth-brief"
+version = "0.1.0"
+description = "Compliant neutral brief generator for public political social media signals."
+requires-python = ">=3.11"
+dependencies = [
+  "alembic>=1.13.0",
+  "apscheduler>=3.10.4",
+  "fastapi>=0.111.0",
+  "jinja2>=3.1.4",
+  "psycopg[binary]>=3.2.1",
+  "pydantic>=2.7.0",
+  "python-dotenv>=1.0.1",
+  "python-multipart>=0.0.9",
+  "Pillow>=10.4.0",
+  "imageio-ffmpeg>=0.5.1",
+  "sqlalchemy>=2.0.30",
+  "uvicorn[standard]>=0.30.0"
+]
+
+[project.optional-dependencies]
+test = [
+  "httpx>=0.27.0",
+  "jsonschema>=4.23.0",
+  "pytest>=8.2.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

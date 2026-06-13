@@ -1,0 +1,22 @@
+{
+  "sources": [
+    {
+      "source_name": "Example Public Archive Or News Source",
+      "source_url": "https://example.org/public-source/item-001",
+      "archive_url": "https://example.org/archive/item-001",
+      "retrieved_at": "2026-06-12T12:00:00Z",
+      "short_excerpt": "Short human-entered excerpt only. Do not paste full posts, full articles, or large verbatim text.",
+      "source_type": "public_archive",
+      "topic_hint": "Neutral topic hint for editorial planning",
+      "why_it_matters": "Why this public information may matter to a neutral daily brief audience.",
+      "operator_note": "Human operator note about source review, terms status, and any caveats."
+    }
+  ],
+  "operator_checklist": [
+    "Do not paste large original text blocks.",
+    "Do not fabricate source_url or archive_url.",
+    "Do not treat sample/fake data as real input.",
+    "Every real source must enter SourceReviewItem before evidence or brief generation.",
+    "Keep manual publish only; this file must not trigger platform publishing."
+  ]
+}

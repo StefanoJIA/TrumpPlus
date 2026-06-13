@@ -1,0 +1,21 @@
+default_provider: local_stub
+allowed_providers:
+  - local_stub
+  - openai_tts
+allow_external_tts: false
+allowed_voices:
+  - neutral_zh
+  - neutral_zh_female
+  - neutral_zh_male
+blocked_voice_terms:
+  - trump
+  - donald
+  - president
+  - celebrity
+  - clone
+  - impersonation
+  - mimic
+  - imitation
+max_script_chars: 5000
+require_voice_qa: true
+require_disclosure: true

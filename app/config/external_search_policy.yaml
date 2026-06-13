@@ -1,0 +1,20 @@
+allow_external_search: false
+allowed_providers:
+  - controlled_search
+  - fake_search
+production_disallow_fake_search: true
+allowed_domains:
+  - example.org
+  - www.example.org
+  - congress.gov
+  - whitehouse.gov
+  - justice.gov
+  - courts.gov
+blocked_domains:
+  - truthsocial.com
+  - www.truthsocial.com
+max_results_per_claim: 5
+max_excerpt_chars: 500
+require_archive_url_when_available: true
+require_human_evidence_review: true
+disallow_truth_social_direct: true

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daily Truth Brief Export Package Manifest",
+  "type": "object",
+  "required": ["brief_id", "status", "title_options", "script", "visual_plan", "video_asset", "sources", "fact_checks", "safety_review", "ranked_posts", "claims", "export_notes"],
+  "properties": {
+    "brief_id": {"type": "integer"},
+    "status": {"type": "string", "enum": ["approved", "exported"]},
+    "title_options": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "script": {"type": "object", "required": ["text", "sources"]},
+    "visual_plan": {"type": "object"},
+    "video_asset": {"type": "object"},
+    "sources": {"type": "array", "minItems": 1},
+    "fact_checks": {"type": "array"},
+    "safety_review": {"type": "object"},
+    "ranked_posts": {"type": "array"},
+    "claims": {"type": "array"},
+    "export_notes": {
+      "type": "object",
+      "required": ["mp4_rendered", "automatic_publishing", "ai_visuals_label_required"],
+      "properties": {
+        "mp4_rendered": {"type": "boolean", "const": false},
+        "automatic_publishing": {"type": "boolean", "const": false},
+        "ai_visuals_label_required": {"type": "string"}
+      }
+    }
+  }
+}
+

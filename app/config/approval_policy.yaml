@@ -1,0 +1,8 @@
+require_reviewer_for_source: true
+require_reviewer_for_evidence: true
+require_reviewer_for_brief: true
+high_risk_requires_admin_or_reviewer: true
+producer_cannot_approve_brief: true
+same_user_cannot_create_and_approve_brief: true
+platform_package_requires_approved_brief: true
+manual_publish_only: true

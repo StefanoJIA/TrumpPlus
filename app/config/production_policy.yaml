@@ -1,0 +1,10 @@
+production_mode: true
+allow_sample_data: false
+disallow_mock_evidence: true
+require_source_review: true
+require_evidence_pack: true
+require_human_approval: true
+require_platform_manual_publish: true
+export_retention_days: 30
+max_daily_briefs: 1
+max_posts_per_brief: 4

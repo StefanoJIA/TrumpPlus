@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ brief.title }} - Daily Truth Brief Review</title>
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #202124; background: #f7f8fa; }
+      main { max-width: 1120px; margin: 0 auto; }
+      section { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+      h1, h2 { margin-top: 0; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border-bottom: 1px solid #e8eaed; padding: 8px; text-align: left; vertical-align: top; }
+      pre { white-space: pre-wrap; background: #f1f3f4; padding: 12px; border-radius: 6px; }
+      textarea, input { width: 100%; box-sizing: border-box; margin: 4px 0 8px; padding: 8px; }
+      button { padding: 8px 12px; margin-right: 8px; }
+      .blocked { color: #b3261e; font-weight: 700; }
+      .warning { color: #8a5a00; font-weight: 700; }
+      .passed { color: #137333; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{{ brief.title }}</h1>
+      <section>
+        <h2>审核状态</h2>
+        {% set safety = brief.safety_review %}
+        <p>
+          Brief: <strong>{{ brief.status }}</strong> |
+          Safety: <span class="{{ safety.overall_status }}">{{ safety.overall_status }}</span> |
+          Export: {{ brief.video_asset.status }} / allowed={{ brief.video_asset.export_allowed }}
+        </p>
+        <form onsubmit="submitReview(event, '/briefs/{{ brief.id }}/approve')">
+          <input name="reviewer_name" placeholder="reviewer_name">
+          <textarea name="reviewer_note" placeholder="approval note"></textarea>
+          <button type="submit">Approve</button>
+        </form>
+        <form onsubmit="submitReview(event, '/briefs/{{ brief.id }}/block')">
+          <input name="reviewer_name" placeholder="reviewer_name">
+          <textarea name="reviewer_note" required placeholder="block reason"></textarea>
+          <button type="submit">Block</button>
+        </form>
+        <form onsubmit="submitReview(event, '/briefs/{{ brief.id }}/request-changes')">
+          <input name="reviewer_name" placeholder="reviewer_name">
+          <textarea name="reviewer_note" required placeholder="requested changes"></textarea>
+          <button type="submit">Request Changes</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Fact-Check Quality Gate</h2>
+        {% set gate = brief.fact_check_quality_gate %}
+        <p>Status: <span class="{{ gate.status }}">{{ gate.status }}</span></p>
+        <p>Missing evidence claims: {{ gate.missing_evidence_claims | length }} | Weak evidence claims: {{ gate.weak_evidence_claims | length }} | High-risk claims: {{ gate.high_risk_claims | length }}</p>
+        <pre>{{ gate }}</pre>
+      </section>
+
+      <section>
+        <h2>Pilot QA</h2>
+        {% set qa = pilot_qa.editorial_qa_report %}
+        <p>
+          QA: <span class="{{ qa.qa_status }}">{{ qa.qa_status }}</span> |
+          Evidence coverage: {{ qa.evidence_coverage_rate }} |
+          High-risk claims: {{ qa.high_risk_claims | length }}
+        </p>
+        <p>
+          Script readability: {{ qa.script_readability_report.readability_score }} / {{ qa.script_readability_report.qa_status }} |
+          Subtitle timing: {{ qa.subtitle_timing_report.qa_status }} |
+          Visual template: {{ qa.visual_template_report.qa_status }}
+        </p>
+        <p>
+          Ready internal review: <strong>{{ qa.first_sample_publish_readiness.ready_internal_review }}</strong> |
+          Ready manual publish: <strong>{{ qa.first_sample_publish_readiness.ready_manual_publish }}</strong>
+        </p>
+        <p>
+          <a href="/briefs/{{ brief.id }}/pilot-qa">Pilot QA JSON</a> |
+          {% if brief.final_video and brief.final_video.status == "rendered" %}
+          <a href="/briefs/{{ brief.id }}/final-video/download">Download final_video.mp4</a> |
+          {% endif %}
+          {% if brief.platform_package and brief.platform_package.status == "generated" %}
+          <a href="/briefs/{{ brief.id }}/platform-package/download">Download Platform Package ZIP</a>
+          {% endif %}
+        </p>
+        <p>Final video: {{ qa.video_files.final_video }}</p>
+        <p>Platform copy status: {{ qa.platform_copy_status.package_status }}</p>
+        {% if qa.first_sample_publish_readiness.blockers %}
+        <h3>Blockers</h3>
+        <ul>
+          {% for item in qa.first_sample_publish_readiness.blockers %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <h3>Script risk notes</h3>
+        <ul>
+          {% for note in qa.script_risk_notes %}
+          <li>{{ note }}</li>
+          {% endfor %}
+        </ul>
+        <h3>Revision recommendations</h3>
+        <ul>
+          {% for item in qa.revision_recommendations %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        <p><strong>Manual publish only.</strong> No publishing API is available from this page.</p>
+      </section>
+
+      <section>
+        <h2>Render Package</h2>
+        {% if brief.render_package %}
+        <p>Status: <strong>{{ brief.render_package.status }}</strong></p>
+        <p>Output dir: {{ brief.render_package.output_dir }}</p>
+        <p>Manifest: {{ brief.render_package.manifest_path }}</p>
+        <p>
+          <a href="/briefs/{{ brief.id }}/render-package">Manifest JSON</a> |
+          <a href="/briefs/{{ brief.id }}/render-package/download">Download Render Package</a>
+        </p>
+        <ul>
+          <li>subtitles.srt</li>
+          <li>subtitles.json</li>
+          <li>cover.png</li>
+          <li>card_01_topic.png</li>
+          <li>card_02_fact_check.png</li>
+          <li>card_03_timeline.png</li>
+          <li>card_04_sources.png</li>
+        </ul>
+        {% else %}
+        <p>No render package generated.</p>
+        {% endif %}
+        {% if brief.status == "approved" and safety.overall_status != "blocked" %}
+        <button onclick="generateRenderPackage()">Generate Render Package</button>
+        {% endif %}
+      </section>
+
+      <section>
+        <h2>Final Video</h2>
+        {% if brief.final_video %}
+        <p>Status: <strong>{{ brief.final_video.status }}</strong></p>
+        <p>TTS provider: {{ brief.final_video.tts_provider }}</p>
+        <p>Duration: {{ brief.final_video.duration_seconds }}</p>
+        <p>Video: {{ brief.final_video.video_path }}</p>
+        <p>Report: {{ brief.final_video.report_path }}</p>
+        <p>
+          <a href="/briefs/{{ brief.id }}/final-video">Render Report JSON</a> |
+          <a href="/briefs/{{ brief.id }}/final-video/download">Download final_video.mp4</a>
+        </p>
+        {% else %}
+        <p>No final video rendered.</p>
+        {% endif %}
+        {% if brief.status == "approved" and safety.overall_status != "blocked" and brief.render_package %}
+        <button onclick="generateFinalVideo()">Generate Final Video</button>
+        {% endif %}
+        <p>Voice policy: neutral_zh only. Political figure, celebrity, clone, and impersonation voices are blocked.</p>
+      </section>
+
+      <section>
+        <h2>TTS Audio</h2>
+        <p>Neutral narrator only. Generated audio is optional; final video falls back to local_stub when no approved TTS exists.</p>
+        <p>
+          <a href="/briefs/{{ brief.id }}/tts/status">TTS Status JSON</a> |
+          <a href="/briefs/{{ brief.id }}/tts/download">Download TTS Audio</a>
+        </p>
+        {% if brief.status == "approved" and safety.overall_status != "blocked" %}
+        <button onclick="generateTTS()">Generate Local Stub TTS</button>
+        <button onclick="runVoiceQA()">Run Voice QA</button>
+        {% endif %}
+      </section>
+
+      <section>
+        <h2>Platform Package</h2>
+        <p><strong>Manual publish only.</strong> This tool creates pre-publish copy and QA files only; it does not call any platform API.</p>
+        {% if brief.platform_package %}
+        <p>Status: <strong>{{ brief.platform_package.status }}</strong></p>
+        <p>Output dir: {{ brief.platform_package.output_dir }}</p>
+        <p>QA report: {{ brief.platform_package.qa_report_path }}</p>
+        <p>Error: {{ brief.platform_package.error_message }}</p>
+        <p>
+          <a href="/briefs/{{ brief.id }}/platform-package">Platform Package JSON</a> |
+          <a href="/briefs/{{ brief.id }}/platform-package/download">Download Platform Package ZIP</a>
+        </p>
+        <ul>
+          <li>bilibili.json</li>
+          <li>xiaohongshu.json</li>
+          <li>douyin.json</li>
+          <li>youtube_shorts.json</li>
+          <li>qa_report.json</li>
+          <li>copy_compliance_report.json</li>
+          <li>evidence_summary.json</li>
+          <li>fact_check_quality_gate.json</li>
+          <li>MANUAL_PUBLISH_CHECKLIST.md</li>
+        </ul>
+        {% else %}
+        <p>No platform package generated.</p>
+        {% endif %}
+        {% if brief.status == "approved" and safety.overall_status != "blocked" and brief.final_video and brief.final_video.status == "rendered" %}
+        <button onclick="generatePlatformPackage()">Generate Platform Package</button>
+        {% endif %}
+      </section>
+
+      <section>
+        <h2>Ranked Posts</h2>
+        <table>
+          <tr><th>Topic</th><th>Summary</th><th>Score</th><th>Source</th></tr>
+          {% for post in brief.ranked_posts %}
+          <tr>
+            <td>{{ post.topic }}</td>
+            <td>{{ post.summary }}</td>
+            <td>{{ post.ranking_score }}</td>
+            <td><a href="{{ post.source_url }}">{{ post.source_url }}</a></td>
+          </tr>
+          {% endfor %}
+        </table>
+      </section>
+
+      <section>
+        <h2>Claims & Fact Checks</h2>
+        <table>
+          <tr><th>Claim</th><th>Type</th><th>Needs Check</th><th>Verdict</th><th>Sources</th></tr>
+          {% for claim in brief.claims %}
+          {% set check = (brief.fact_checks | selectattr("claim_id", "equalto", claim.id) | list | first) %}
+          <tr>
+            <td>{{ claim.claim_text }}</td>
+            <td>{{ claim.claim_type }}</td>
+            <td>{{ claim.requires_fact_check }}</td>
+            <td>{{ check.verdict if check else "missing" }}</td>
+            <td>{{ check.sources if check else "" }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </section>
+
+      <section>
+        <h2>Evidence Pack</h2>
+        <p>Evidence stores short excerpts, URLs, source metadata, verdicts, and editor notes only. It does not perform web crawling.</p>
+        <button onclick="generateEvidencePack()">Generate Evidence Pack</button>
+        <p><a href="/briefs/{{ brief.id }}/evidence-pack/report">Evidence Report JSON</a></p>
+        {% if brief.evidence_packs %}
+        <table>
+          <tr><th>Claim ID</th><th>Status</th><th>Verdict</th><th>Evidence</th><th>Confidence / Sources</th><th>Unresolved Risks / Rationale</th></tr>
+          {% for pack in brief.evidence_packs %}
+          <tr>
+            <td>{{ pack.claim_id }}</td>
+            <td>{{ pack.status }}</td>
+            <td>{{ pack.verdict }}</td>
+            <td>{{ pack.evidence_count }}</td>
+            <td>
+              {% for item in pack.evidence_items %}
+              {{ item.confidence }} / {{ item.source.source_url if item.source else item.source_url }}<br>
+              {% endfor %}
+            </td>
+            <td>{{ pack.rationale }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% else %}
+        <p>No evidence packs generated.</p>
+        {% endif %}
+      </section>
+
+      <section>
+        <h2>Script</h2>
+        <pre>{{ brief.script.text }}</pre>
+      </section>
+
+      <section>
+        <h2>Visual Plan</h2>
+        <pre>{{ brief.visual_plan }}</pre>
+      </section>
+
+      <section>
+        <h2>Safety Rules</h2>
+        <table>
+          <tr><th>Rule</th><th>Passed</th><th>Severity</th><th>Message</th><th>Evidence</th></tr>
+          {% for rule in safety.rules %}
+          <tr>
+            <td>{{ rule.rule_id }}</td>
+            <td>{{ rule.passed }}</td>
+            <td>{{ rule.severity }}</td>
+            <td>{{ rule.message }}</td>
+            <td>{{ rule.evidence }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </section>
+    </main>
+    <script>
+      async function submitReview(event, url) {
+        event.preventDefault();
+        const form = event.target;
+        const payload = {
+          reviewer_name: form.reviewer_name.value || null,
+          reviewer_note: form.reviewer_note.value || null
+        };
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function generateRenderPackage() {
+        const response = await fetch('/briefs/{{ brief.id }}/render-package', {method: 'POST'});
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function generateFinalVideo() {
+        const response = await fetch('/briefs/{{ brief.id }}/final-video', {method: 'POST'});
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function generateTTS() {
+        const response = await fetch('/briefs/{{ brief.id }}/tts/generate', {
+          method: 'POST',
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({provider: "local_stub", voice: "neutral_zh"})
+        });
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function runVoiceQA() {
+        const response = await fetch('/briefs/{{ brief.id }}/tts/voice-qa', {
+          method: 'POST',
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({reviewer_name: "review_page", reviewer_note: "manual voice QA refresh"})
+        });
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function generateEvidencePack() {
+        const response = await fetch('/briefs/{{ brief.id }}/evidence-pack/generate', {method: 'POST'});
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+      async function generatePlatformPackage() {
+        const response = await fetch('/briefs/{{ brief.id }}/platform-package', {method: 'POST'});
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "sample_data": true,
+  "notice": "SAMPLE/FAKE PUBLIC ARCHIVE DATA ONLY. These records are for source review workflow tests.",
+  "source": {
+    "name": "sample-public-archive-json",
+    "base_url": "https://example.org/public-archive-json"
+  },
+  "direct_truth_social_scrape": false,
+  "items": [
+    {
+      "source_url": "https://example.org/public-archive-json/sample-source-001",
+      "archive_url": "https://example.org/public-archive-json/archive/sample-source-001",
+      "retrieved_at": "2026-06-12T12:00:00Z",
+      "short_excerpt": "SAMPLE FAKE ARCHIVE ITEM: A public figure comments on trade policy and says official figures should be checked.",
+      "summary": "A fictional public archive item about trade policy and official figures.",
+      "media_refs": []
+    },
+    {
+      "source_url": "https://example.org/public-archive-json/sample-source-002",
+      "archive_url": "https://example.org/public-archive-json/archive/sample-source-002",
+      "retrieved_at": "2026-06-12T12:05:00Z",
+      "short_excerpt": "SAMPLE FAKE ARCHIVE ITEM: A public figure reacts to a court schedule and frames it as politically important.",
+      "summary": "A fictional public archive item about a court schedule.",
+      "media_refs": []
+    }
+  ]
+}

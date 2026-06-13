@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daily Truth Brief Video Asset",
+  "type": "object",
+  "required": ["id", "status", "export_allowed", "asset_json"],
+  "properties": {
+    "id": {"type": "integer"},
+    "status": {"type": "string", "enum": ["pending_human_review", "approved_for_export", "blocked", "exported"]},
+    "export_allowed": {"type": "boolean"},
+    "asset_json": {
+      "type": "object",
+      "required": ["brief_id", "title", "script", "visual_plan", "safety_review", "sources", "fact_checks", "rendering"],
+      "properties": {
+        "brief_id": {"type": "integer"},
+        "title": {"type": "string"},
+        "script": {"type": "object", "required": ["text", "sources"]},
+        "visual_plan": {"type": "object"},
+        "safety_review": {"type": "object"},
+        "sources": {"type": "array", "minItems": 1},
+        "fact_checks": {"type": "array"},
+        "rendering": {
+          "type": "object",
+          "required": ["mp4_rendered", "next_step"],
+          "properties": {
+            "mp4_rendered": {"type": "boolean", "const": false},
+            "next_step": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daily Truth Brief Render Manifest",
+  "type": "object",
+  "required": [
+    "brief_id",
+    "title",
+    "duration_target_seconds",
+    "aspect_ratio",
+    "script_segments",
+    "subtitle_items",
+    "visual_cards",
+    "source_cards",
+    "safety_labels",
+    "output_files"
+  ],
+  "properties": {
+    "brief_id": {"type": "integer"},
+    "title": {"type": "string"},
+    "duration_target_seconds": {"type": "integer", "minimum": 45, "maximum": 90},
+    "aspect_ratio": {"type": "string", "enum": ["9:16", "16:9", "1:1"]},
+    "script_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "text", "duration_seconds"],
+        "properties": {
+          "index": {"type": "integer"},
+          "text": {"type": "string"},
+          "duration_seconds": {"type": "number"}
+        }
+      }
+    },
+    "subtitle_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "start_seconds", "end_seconds", "text"],
+        "properties": {
+          "index": {"type": "integer"},
+          "start_seconds": {"type": "number"},
+          "end_seconds": {"type": "number"},
+          "text": {"type": "string"}
+        }
+      }
+    },
+    "visual_cards": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["scene_type", "duration_seconds", "image_path", "subtitle_range"],
+        "properties": {
+          "scene_type": {"type": "string"},
+          "duration_seconds": {"type": "number"},
+          "image_path": {"type": "string"},
+          "subtitle_range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}
+        }
+      }
+    },
+    "source_cards": {"type": "array"},
+    "safety_labels": {"type": "array", "items": {"type": "string"}},
+    "output_files": {"type": "object"}
+  }
+}
+

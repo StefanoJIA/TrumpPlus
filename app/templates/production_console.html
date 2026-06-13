@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brief Production Console</title>
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #202124; background: #f7f8fa; }
+      main { max-width: 1100px; margin: 0 auto; }
+      section { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border-bottom: 1px solid #e8eaed; padding: 8px; text-align: left; vertical-align: top; }
+      code { background: #f1f3f4; padding: 2px 4px; border-radius: 4px; }
+      .notice { padding: 10px; background: #fff7e0; border: 1px solid #f6d365; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Brief #{{ brief.id }} Production Console</h1>
+      <p class="notice">Manual publish only. `run-next-step` never auto-approves and never calls platform publishing APIs.</p>
+      <p>Current user: <strong>{{ current_user.username }}</strong> / current role: <strong>{{ current_user.role }}</strong></p>
+
+      <section>
+        <h2>Status Chain</h2>
+        <table>
+          <tr><th>Step</th><th>Status</th></tr>
+          {% for step in steps %}
+          <tr><td>{{ step.name }}</td><td>{{ step.status }}</td></tr>
+          {% endfor %}
+        </table>
+      </section>
+
+      <section>
+        <h2>Next Allowed Action</h2>
+        <table>
+          <tr><th>Next</th><td><code>{{ next_action.next_action }}</code></td></tr>
+          <tr><th>Required Role</th><td>approval: reviewer/admin; production steps: producer/admin; topic steps: editor/admin</td></tr>
+          <tr><th>Current Role</th><td>{{ current_user.role }}</td></tr>
+          <tr><th>Permission Status</th><td>{{ permission_status }}</td></tr>
+          <tr><th>Allowed</th><td>{{ next_action.allowed_actions }}</td></tr>
+          <tr><th>Blocked</th><td>{{ next_action.blocked_actions }}</td></tr>
+          <tr><th>Reasons</th><td>{{ next_action.blocking_reasons }}</td></tr>
+          <tr><th>Reviewer Note Required</th><td>{{ next_action.required_reviewer_note }}</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Artifacts</h2>
+        <table>
+          <tr><th>Artifact</th><th>Link</th></tr>
+          <tr><td>Brief JSON</td><td><a href="/briefs/{{ brief.id }}">/briefs/{{ brief.id }}</a></td></tr>
+          <tr><td>Evidence Report</td><td><a href="/briefs/{{ brief.id }}/evidence-pack/report">report</a></td></tr>
+          <tr><td>Render Package</td><td><a href="/briefs/{{ brief.id }}/render-package">status</a> / <a href="/briefs/{{ brief.id }}/render-package/download">download</a></td></tr>
+          <tr><td>TTS</td><td><a href="/briefs/{{ brief.id }}/tts/status">status</a> / <a href="/briefs/{{ brief.id }}/tts/download">download</a></td></tr>
+          <tr><td>Final Video</td><td><a href="/briefs/{{ brief.id }}/final-video">status</a> / <a href="/briefs/{{ brief.id }}/final-video/download">download</a></td></tr>
+          <tr><td>Platform Package</td><td><a href="/briefs/{{ brief.id }}/platform-package">status</a> / <a href="/briefs/{{ brief.id }}/platform-package/download">download</a></td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Approval History</h2>
+        <table>
+          <tr><th>Time</th><th>Action</th><th>Actor</th><th>Role</th><th>Decision</th><th>Note</th></tr>
+          {% for record in approval_history %}
+          <tr><td>{{ record.created_at }}</td><td>{{ record.action }}</td><td>{{ record.actor }}</td><td>{{ record.actor_role }}</td><td>{{ record.decision }}</td><td>{{ record.note }}</td></tr>
+          {% endfor %}
+        </table>
+      </section>
+
+      <section>
+        <h2>Audit Trail</h2>
+        <table>
+          <tr><th>Time</th><th>Event</th><th>Status</th><th>Actor</th><th>Note</th></tr>
+          {% for event in timeline %}
+          <tr><td>{{ event.timestamp }}</td><td>{{ event.event_type }}</td><td>{{ event.status }}</td><td>{{ event.actor }}</td><td>{{ event.note }}</td></tr>
+          {% endfor %}
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+bilibili:
+  title_max_chars: 80
+  description_max_chars: 2000
+  tag_max_count: 10
+  preferred_aspect_ratio: ["16:9", "9:16"]
+  preferred_duration_min: 45
+  preferred_duration_max: 180
+  require_sources: true
+  require_ai_disclosure: true
+  require_manual_publish: true
+  forbidden_terms_examples: ["震惊", "疯了", "全网封杀", "彻底完了"]
+  notes: "标题偏信息型，简介保留来源和人工审核提示。"
+xiaohongshu:
+  title_max_chars: 20
+  description_max_chars: 1000
+  tag_max_count: 10
+  preferred_aspect_ratio: ["9:16"]
+  preferred_duration_min: 15
+  preferred_duration_max: 90
+  require_sources: true
+  require_ai_disclosure: true
+  require_manual_publish: true
+  forbidden_terms_examples: ["震惊", "疯了", "全网封杀", "彻底完了"]
+  notes: "标题短，标签较重要，避免情绪化和动员式表达。"
+douyin:
+  title_max_chars: 24
+  description_max_chars: 500
+  tag_max_count: 8
+  preferred_aspect_ratio: ["9:16"]
+  preferred_duration_min: 15
+  preferred_duration_max: 90
+  require_sources: true
+  require_ai_disclosure: true
+  require_manual_publish: true
+  forbidden_terms_examples: ["震惊", "疯了", "全网封杀", "彻底完了"]
+  notes: "短标题和高节奏，但不能夸张误导或政治动员。"
+youtube_shorts:
+  title_max_chars: 60
+  description_max_chars: 5000
+  tag_max_count: 15
+  preferred_aspect_ratio: ["9:16"]
+  preferred_duration_min: 15
+  preferred_duration_max: 60
+  require_sources: true
+  require_ai_disclosure: true
+  require_manual_publish: true
+  forbidden_terms_examples: ["震惊", "疯了", "全网封杀", "彻底完了"]
+  notes: "标题简洁，描述含来源、AI 辅助整理和人工审核提示。"

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Source Review Queue - Daily Truth Brief</title>
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #202124; background: #f7f8fa; }
+      main { max-width: 1120px; margin: 0 auto; }
+      section { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border-bottom: 1px solid #e8eaed; padding: 8px; text-align: left; vertical-align: top; }
+      button { padding: 6px 10px; margin: 2px; }
+      input { width: 100%; box-sizing: border-box; padding: 6px; margin: 2px 0; }
+      .blocked { color: #b3261e; font-weight: 700; }
+      .approved { color: #137333; font-weight: 700; }
+      .pending { color: #8a5a00; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Source Review Queue</h1>
+      <section>
+        <p>真实来源必须先经过 source review。此页面只审核人工输入或公开归档 JSON，不抓取 Truth Social，也不触发任何发布 API。</p>
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Source</th>
+            <th>URL</th>
+            <th>Excerpt</th>
+            <th>Status</th>
+            <th>Warnings</th>
+            <th>Actions</th>
+          </tr>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.id }}</td>
+            <td>{{ item.source_name }}<br>{{ item.adapter_name }}</td>
+            <td>
+              <a href="{{ item.source_url }}">{{ item.source_url }}</a><br>
+              {% if item.archive_url %}<a href="{{ item.archive_url }}">{{ item.archive_url }}</a>{% endif %}
+            </td>
+            <td>{{ item.raw_excerpt }}</td>
+            <td>
+              terms=<span class="{{ item.terms_status }}">{{ item.terms_status }}</span><br>
+              human=<span class="{{ item.human_status }}">{{ item.human_status }}</span>
+            </td>
+            <td>{{ item.warnings }}</td>
+            <td>
+              <input id="reviewer-{{ item.id }}" placeholder="reviewer_name">
+              <input id="note-{{ item.id }}" placeholder="reviewer_note">
+              <button onclick="sourceAction({{ item.id }}, 'approve')">Approve</button>
+              <button onclick="sourceAction({{ item.id }}, 'reject')">Reject</button>
+              <button onclick="sourceAction({{ item.id }}, 'needs-changes')">Needs Changes</button>
+              <button onclick="sourceAction({{ item.id }}, 'promote-to-post')">Promote</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </section>
+    </main>
+    <script>
+      async function sourceAction(id, action) {
+        const reviewer = document.getElementById(`reviewer-${id}`).value || null;
+        const note = document.getElementById(`note-${id}`).value || `${action} from review page`;
+        const response = await fetch(`/sources/review-queue/${id}/${action}`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({reviewer_name: reviewer, reviewer_note: note})
+        });
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        window.location.reload();
+      }
+    </script>
+  </body>
+</html>

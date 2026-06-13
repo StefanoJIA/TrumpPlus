@@ -1,0 +1,319 @@
+{
+  "status": "passed",
+  "dry_run": true,
+  "test_mode": true,
+  "health": {
+    "status": "ok"
+  },
+  "security": {
+    "app_env": "local",
+    "auth_mode": "header_stub",
+    "insecure_auth_stub": false,
+    "manual_publish_only": true,
+    "platform_publish_api_enabled": false,
+    "truth_social_direct_scraper_enabled": false,
+    "dangerous_config_warnings": [],
+    "permissions_policy_loaded": true,
+    "source_policy_loaded": true
+  },
+  "workspace": {
+    "id": 1,
+    "name": "Daily Truth Brief Dev",
+    "slug": "daily-truth-brief-dev",
+    "status": "active",
+    "created_at": "2026-06-12T19:30:42.461089+00:00",
+    "updated_at": "2026-06-12T19:30:42.461089+00:00"
+  },
+  "current_user": {
+    "user_id": 3,
+    "username": "smoke-viewer",
+    "display_name": "smoke-viewer",
+    "role": "viewer",
+    "workspace_id": 1,
+    "workspace_slug": "daily-truth-brief-dev",
+    "auth_mode": "header_stub",
+    "is_authenticated": true,
+    "is_stub": true,
+    "request_id": "staging-smoke-1781319476251",
+    "is_active": true
+  },
+  "team_count": 10,
+  "permissions_matrix_roles": [
+    "admin",
+    "editor",
+    "reviewer",
+    "producer",
+    "viewer"
+  ],
+  "brief_id": 23,
+  "render_action": "generate_render_package",
+  "tts_action": "generate_tts",
+  "final_action": "generate_final_video",
+  "platform_action": "generate_platform_package",
+  "audit_count": 273,
+  "invariants": {
+    "overall_status": "passed",
+    "checks": [
+      {
+        "id": "unapproved_brief_cannot_render",
+        "passed": true,
+        "details": []
+      },
+      {
+        "id": "safety_blocked_cannot_render_export_package",
+        "passed": true,
+        "details": []
+      },
+      {
+        "id": "producer_editor_approval_policy",
+        "passed": true,
+        "details": "PermissionService denies producer/editor brief approval; covered by role tests."
+      },
+      {
+        "id": "platform_package_requires_final_video",
+        "passed": true,
+        "details": []
+      },
+      {
+        "id": "manual_publish_only",
+        "passed": true,
+        "details": {
+          "manual_publish_only": true
+        }
+      },
+      {
+        "id": "no_platform_publish_api_configured",
+        "passed": true,
+        "details": {
+          "platform_publish_api_enabled": false
+        }
+      },
+      {
+        "id": "no_truth_social_direct_scraper_enabled",
+        "passed": true,
+        "details": {
+          "truth_social_direct_scraper_enabled": false
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/health",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476074"
+    },
+    {
+      "name": "security_health",
+      "method": "GET",
+      "path": "/health/security",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476238"
+    },
+    {
+      "name": "workspace_current",
+      "method": "GET",
+      "path": "/workspaces/current",
+      "role": "viewer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476251"
+    },
+    {
+      "name": "workspace_team",
+      "method": "GET",
+      "path": "/workspaces/current/team",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476304"
+    },
+    {
+      "name": "workspace_invite_create",
+      "method": "POST",
+      "path": "/workspaces/current/invites",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476334"
+    },
+    {
+      "name": "workspace_invite_revoke",
+      "method": "POST",
+      "path": "/workspaces/current/invites/7/revoke",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476348"
+    },
+    {
+      "name": "permissions_matrix",
+      "method": "GET",
+      "path": "/admin/permissions/matrix",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476358"
+    },
+    {
+      "name": "manual_url_ingest",
+      "method": "POST",
+      "path": "/sources/ingest/manual-url",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476367"
+    },
+    {
+      "name": "source_approve",
+      "method": "POST",
+      "path": "/sources/review-queue/18/approve",
+      "role": "reviewer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476378"
+    },
+    {
+      "name": "source_promote",
+      "method": "POST",
+      "path": "/sources/review-queue/18/promote-to-post-and-evidence",
+      "role": "reviewer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476391"
+    },
+    {
+      "name": "topics_generate",
+      "method": "POST",
+      "path": "/editorial/topics/generate",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476439"
+    },
+    {
+      "name": "topic_select",
+      "method": "POST",
+      "path": "/editorial/topics/11/select",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476455"
+    },
+    {
+      "name": "topic_schedule",
+      "method": "POST",
+      "path": "/editorial/calendar/schedule",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476467"
+    },
+    {
+      "name": "start_production",
+      "method": "POST",
+      "path": "/editorial/topics/11/start-production",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476480"
+    },
+    {
+      "name": "claim_evidence_link",
+      "method": "POST",
+      "path": "/claims/90/evidence-links",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476543"
+    },
+    {
+      "name": "claim_evidence_link",
+      "method": "POST",
+      "path": "/claims/91/evidence-links",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476559"
+    },
+    {
+      "name": "claim_evidence_link",
+      "method": "POST",
+      "path": "/claims/92/evidence-links",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476571"
+    },
+    {
+      "name": "claim_evidence_link",
+      "method": "POST",
+      "path": "/claims/93/evidence-links",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476584"
+    },
+    {
+      "name": "claim_evidence_link",
+      "method": "POST",
+      "path": "/claims/94/evidence-links",
+      "role": "editor",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476596"
+    },
+    {
+      "name": "evidence_pack",
+      "method": "POST",
+      "path": "/briefs/23/evidence-pack/generate",
+      "role": "reviewer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476609"
+    },
+    {
+      "name": "brief_approve",
+      "method": "POST",
+      "path": "/briefs/23/approve",
+      "role": "reviewer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476664"
+    },
+    {
+      "name": "producer_render",
+      "method": "POST",
+      "path": "/editorial/briefs/23/run-next-step",
+      "role": "producer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476693"
+    },
+    {
+      "name": "producer_tts",
+      "method": "POST",
+      "path": "/editorial/briefs/23/run-next-step",
+      "role": "producer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476892"
+    },
+    {
+      "name": "producer_final",
+      "method": "POST",
+      "path": "/editorial/briefs/23/run-next-step",
+      "role": "producer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319476923"
+    },
+    {
+      "name": "producer_platform",
+      "method": "POST",
+      "path": "/editorial/briefs/23/run-next-step",
+      "role": "producer",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319479596"
+    },
+    {
+      "name": "audit_export",
+      "method": "GET",
+      "path": "/ops/audit-log/export?format=json",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319479728"
+    },
+    {
+      "name": "invariants",
+      "method": "GET",
+      "path": "/admin/invariants",
+      "role": "admin",
+      "status_code": 200,
+      "request_id": "staging-smoke-1781319479762"
+    }
+  ],
+  "manual_publish_only": true
+}

@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "id": "unsupported_accusation",
+      "kind": "safety",
+      "expected_block": true,
+      "input": {"claim_type": "accusation", "verdict": "unsupported"}
+    },
+    {
+      "id": "missing_source",
+      "kind": "safety",
+      "expected_block": true,
+      "input": {"source_url": ""}
+    },
+    {
+      "id": "missing_ai_disclosure",
+      "kind": "copy",
+      "expected_block": true,
+      "input": {"ai_disclosure": ""}
+    },
+    {
+      "id": "clickbait_title",
+      "kind": "copy",
+      "expected_block": true,
+      "input": {"title_options": ["震惊：彻底完了"]}
+    },
+    {
+      "id": "blocked_evidence_domain",
+      "kind": "evidence",
+      "expected_block": true,
+      "input": {"source_url": "https://truthsocial.com/@sample/posts/1"}
+    },
+    {
+      "id": "mock_provider_in_production",
+      "kind": "provider",
+      "expected_block": true,
+      "input": {"provider": "mock", "environment": "production"}
+    },
+    {
+      "id": "unapproved_brief_render_attempt",
+      "kind": "api",
+      "expected_block": true,
+      "input": {"endpoint": "/briefs/{id}/render-package"}
+    }
+  ]
+}

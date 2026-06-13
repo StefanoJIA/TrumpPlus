@@ -1,0 +1,20 @@
+allowed_providers:
+  - manual
+  - local_json
+  - mock
+blocked_domains:
+  - truthsocial.com
+  - www.truthsocial.com
+max_evidence_excerpt_chars: 500
+min_evidence_for_claim_types:
+  fact: 1
+  prediction: 1
+  accusation: 1
+  quote: 1
+  number: 1
+  legal: 1
+  election: 1
+  policy: 1
+  opinion: 0
+production_disallow_mock_provider: true
+default_environment: production

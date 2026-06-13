@@ -1,0 +1,40 @@
+{
+  "sample_data": true,
+  "notice": "SAMPLE/FAKE DATA ONLY. These entries are fictional test records and do not quote or impersonate Donald Trump.",
+  "source": {
+    "name": "sample-manual-public-archive",
+    "base_url": "https://example.org/daily-truth-brief-sample",
+    "public_archive_url": "https://example.org/daily-truth-brief-sample",
+    "direct_truth_social_scrape": false
+  },
+  "posts": [
+    {
+      "post_id": "sample-fake-001",
+      "published_at": "2026-06-10T13:00:00Z",
+      "source_url": "https://example.org/archive/sample-fake-001",
+      "text": "SAMPLE FAKE POST: A public figure comments on border policy and says new numbers should be reviewed by officials.",
+      "short_excerpt": "SAMPLE FAKE POST: A public figure comments on border policy and says new numbers should be reviewed by officials.",
+      "summary": "A fictional public post discusses border policy and references new numbers that require official-source verification.",
+      "topic": "border policy"
+    },
+    {
+      "post_id": "sample-fake-002",
+      "published_at": "2026-06-10T16:30:00Z",
+      "source_url": "https://example.org/archive/sample-fake-002",
+      "text": "SAMPLE FAKE POST: A public figure gives an opinion that a court decision is important for the campaign calendar.",
+      "short_excerpt": "SAMPLE FAKE POST: A public figure gives an opinion about a court decision and the campaign calendar.",
+      "summary": "A fictional public post frames a court decision as important and links it to the campaign calendar.",
+      "topic": "court and campaign calendar"
+    },
+    {
+      "post_id": "sample-fake-003",
+      "published_at": "2026-06-10T20:45:00Z",
+      "source_url": "https://example.org/archive/sample-fake-003",
+      "text": "SAMPLE FAKE POST: A public figure predicts economic policy will be debated next week and mentions jobs and spending.",
+      "short_excerpt": "SAMPLE FAKE POST: A public figure predicts an economic policy debate next week.",
+      "summary": "A fictional public post predicts that economic policy, jobs, and spending will be debated next week.",
+      "topic": "economy"
+    }
+  ]
+}
+
