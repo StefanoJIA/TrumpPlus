@@ -4,7 +4,13 @@ __pycache__/
 .venv/
 venv/
 data/
+!data/
+data/*
+!data/feeds/
+!data/feeds/daily_truth_feed.json
+!data/feeds/remote_feed_sample.xml
 data/media/
+data/*.db
 data/posts.db
 logs/
 exports/

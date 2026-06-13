@@ -1,0 +1,29 @@
+{
+  "feed_date": "2026-06-13",
+  "items": [
+    {
+      "source_name": "sample-public-archive-json",
+      "source_url": "https://example.org/daily/source-1",
+      "archive_url": "https://example.org/archive/daily/source-1",
+      "retrieved_at": "2026-06-13T12:00:00Z",
+      "short_excerpt": "Public source coverage describes coordination details for neutral daily review.",
+      "summary": "A public archive item for neutral source intake testing.",
+      "source_type": "public_archive",
+      "topic_hint": "Public source coverage",
+      "why_it_matters": "Useful for validating daily source review intake.",
+      "source_confidence": "medium"
+    },
+    {
+      "source_name": "sample-public-archive-json",
+      "source_url": "https://example.org/daily/source-2",
+      "archive_url": "https://example.org/archive/daily/source-2",
+      "retrieved_at": "2026-06-13T13:00:00Z",
+      "short_excerpt": "Public archive source material provides a second reviewed item for coverage.",
+      "summary": "A second public archive item for neutral source intake testing.",
+      "source_type": "public_archive",
+      "topic_hint": "Public source coverage",
+      "why_it_matters": "Useful for validating daily orchestration flows.",
+      "source_confidence": "medium"
+    }
+  ]
+}
