@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 import shutil
 import subprocess
 from pathlib import Path
@@ -90,9 +91,12 @@ class FFMpegRenderer:
 
     def _ffmpeg_executable(self) -> str:
         system = shutil.which("ffmpeg")
-        if system:
+        if system and _supports_subtitles_filter(system):
             return system
-        return imageio_ffmpeg.get_ffmpeg_exe()
+        bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        if _supports_subtitles_filter(bundled):
+            return bundled
+        return system or bundled
 
     def _write_concat_file(self, manifest: dict, concat_path: Path) -> None:
         lines = []
@@ -186,3 +190,15 @@ class FFMpegRenderer:
                 f"Brief ID: {manifest['brief_id']}",
             ]
         )
+
+
+@lru_cache(maxsize=8)
+def _supports_subtitles_filter(ffmpeg: str) -> bool:
+    completed = subprocess.run(
+        [ffmpeg, "-hide_banner", "-filters"],
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    return completed.returncode == 0 and " subtitles " in completed.stdout
