@@ -1,0 +1,23 @@
+feeds:
+  - name: sample-public-archive-json
+    enabled: true
+    feed_url: data/feeds/remote_feed_sample.xml
+    parser: rss
+    source_type: public_archive
+    topic_hint: "Reviewed public archive feed"
+    why_it_matters: "Public, allowlisted feed item for neutral daily source intake testing."
+    source_confidence: medium
+    archive_url_prefix: "https://example.org/archive?url="
+    require_item_date_match: true
+    date_window_days: 0
+    require_topic_keyword_match: true
+    topic_keywords:
+      - public
+      - source
+      - coverage
+    exclude_keywords:
+      - sports
+defaults:
+  max_items: 10
+  timeout_seconds: 20
+  user_agent: "DailyTruthBrief/1.0 compliant-source-review"

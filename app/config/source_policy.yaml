@@ -9,6 +9,8 @@ allowed_sources:
     allow_manual_input: false
 allowed_public_archives:
   - sample-public-archive-json
+allowed_remote_feeds:
+  - sample-public-archive-json
 manual_review_required_sources:
   - sample-manual-public-archive
   - sample-public-archive-json

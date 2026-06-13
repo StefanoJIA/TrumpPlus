@@ -2,6 +2,7 @@ import io
 import json
 import os
 import pytest
+import shutil
 import subprocess
 import sys
 import yaml
@@ -13,8 +14,11 @@ from jsonschema import validate
 from PIL import Image
 
 from app.services.compliance_copy_checker import ComplianceCopyChecker
+from app.services.auto_topic_selector import AutoTopicSelector
+from app.services.daily_run_index import DailyRunIndexService
 from app.services.editorial_qa_reporter import EditorialQAReporter
 from app.services.evidence_link_suggester import EvidenceLinkSuggester
+from app.services.feed_readiness_validator import FeedReadinessValidator
 from app.services.script_writer import ScriptWriter
 from app.services.script_readability_qa import ScriptReadabilityQA
 from app.services.safety_checker import SafetyChecker
@@ -36,6 +40,8 @@ from app.services.production_policy import ProductionPolicy
 from app.services.tts_policy import TTSPolicy
 from app.services.voice_qa import VoiceQA
 from app.sources.manual_url import ManualUrlAdapter
+from app.sources.daily_feed_json import DailyFeedJsonAdapter
+from app.sources.remote_feed import RemoteFeedAdapter
 from app.sources.registry import SourceAdapterRegistry
 from app.tts.local_stub import LocalStubTTSProvider
 from app.tts.openai_provider import OpenAITTSProvider
@@ -2565,6 +2571,307 @@ def test_phase27_pilot_flow_still_produces_final_video_and_platform_package(tmp_
     assert Path(report["final_video"]["video_path"]).exists()
     assert Path(report["platform_package"]["package_path"]).exists()
     assert "script_readability_report" in report["editorial_qa_report"]
+
+
+def test_daily_feed_adapter_creates_source_review_items(client):
+    response = client.post("/sources/ingest/daily-feed-json", json={"path": "data/feeds/daily_truth_feed.json"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["created_count"] == 2
+    assert payload["items"][0]["adapter_name"] == "daily_feed_json"
+    assert payload["items"][0]["human_status"] == "pending"
+
+
+def test_daily_feed_unknown_source_blocked(tmp_path):
+    feed = tmp_path / "bad_feed.json"
+    feed.write_text(
+        json.dumps(
+            {
+                "feed_date": "2026-06-13",
+                "items": [
+                    {
+                        "source_name": "unknown-source",
+                        "source_url": "https://example.org/unknown",
+                        "archive_url": "https://example.org/archive/unknown",
+                        "retrieved_at": "2026-06-13T12:00:00Z",
+                        "short_excerpt": "Short excerpt.",
+                        "source_type": "public_archive",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    adapter = DailyFeedJsonAdapter(feed)
+    with pytest.raises(ValueError):
+        adapter.fetch_review_items()
+
+
+def test_remote_feed_adapter_creates_source_review_items(client):
+    response = client.post("/sources/ingest/remote-feed", json={"config_path": "app/config/remote_source_feeds.yaml"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["created_count"] == 2
+    assert payload["filter_report"]["total_raw_items"] == 3
+    assert payload["filter_report"]["filtered_by_exclusion"] == 1
+    assert payload["items"][0]["adapter_name"] == "remote_feed"
+    assert payload["items"][0]["human_status"] == "pending"
+
+
+def test_remote_feed_blocks_truth_social_direct_url(tmp_path):
+    config = tmp_path / "remote_source_feeds.yaml"
+    config.write_text(
+        """
+feeds:
+  - name: sample-public-archive-json
+    enabled: true
+    feed_url: https://truthsocial.com/@realDonaldTrump/rss
+    parser: rss
+defaults:
+  max_items: 5
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError):
+        RemoteFeedAdapter(config).validate_terms_safety()
+
+
+def test_remote_feed_date_filter_keeps_only_target_day_items():
+    items, report = RemoteFeedAdapter(Path("app/config/remote_source_feeds.yaml")).fetch_review_items_with_filter_report(target_date="2026-06-14")
+    assert items == []
+    assert report["total_raw_items"] == 3
+    assert report["filtered_by_date"] == 2
+    assert report["filtered_by_exclusion"] == 1
+
+
+def test_remote_feed_readiness_passes_sample_config(client):
+    response = client.post("/sources/remote-feed/readiness", json={"config_path": "app/config/remote_source_feeds.yaml"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] in {"passed", "warning"}
+    assert payload["feed_count"] == 1
+    assert payload["feeds"][0]["preview_item_count"] == 3
+    assert payload["feeds"][0]["preview_kept_item_count"] == 2
+    assert payload["items_enter_source_review_queue"] is True
+    assert payload["direct_truth_social_scraper_used"] is False
+
+
+def test_remote_feed_readiness_blocks_unknown_source(tmp_path):
+    config = tmp_path / "remote_source_feeds.yaml"
+    config.write_text(
+        """
+feeds:
+  - name: not-on-allowlist
+    enabled: true
+    feed_url: data/feeds/remote_feed_sample.xml
+    parser: rss
+defaults:
+  max_items: 5
+""",
+        encoding="utf-8",
+    )
+    report = FeedReadinessValidator().validate_remote_feed_config(config, fetch_preview=False)
+    assert report["status"] == "blocked"
+    assert "not-on-allowlist:feed_not_allowlisted" in report["blocking_errors"]
+
+
+def test_daily_orchestrator_dry_run_does_not_approve_or_publish(tmp_path):
+    from app.jobs.daily_run_orchestrator import run_daily
+
+    report = run_daily("2026-06-13", "dry-run", "data/feeds/daily_truth_feed.json", str(tmp_path))
+    assert report["mode"] == "dry-run"
+    assert report["accepted_source_count"] == 0
+    assert report["platform_publish_api_called"] is False
+    assert report["platform_package_path"] is None
+    assert (tmp_path / "daily_run_report.json").exists()
+
+
+def test_daily_orchestrator_remote_dry_run_does_not_approve_or_publish(tmp_path):
+    from app.jobs.daily_run_orchestrator import run_daily
+
+    report = run_daily(
+        "2026-06-13",
+        "dry-run",
+        "app/config/remote_source_feeds.yaml",
+        str(tmp_path),
+        feed_mode="remote",
+    )
+    assert report["feed_mode"] == "remote"
+    assert report["feed_readiness"]["status"] in {"passed", "warning"}
+    assert report["feed_filter_report"]["total_raw_items"] == 3
+    assert report["feed_filter_report"]["kept_item_count"] == 2
+    assert report["accepted_source_count"] == 0
+    assert report["platform_publish_api_called"] is False
+    assert report["platform_package_path"] is None
+
+
+def test_daily_run_index_service_writes_latest(tmp_path):
+    run_dir = tmp_path / "2099-01-03"
+    run_dir.mkdir(parents=True)
+    (run_dir / "daily_run_report.json").write_text(
+        json.dumps(
+            {
+                "date": "2099-01-03",
+                "mode": "dry-run",
+                "feed_mode": "remote",
+                "generated_at": "2099-01-03T08:00:00+00:00",
+                "feed_item_count": 2,
+                "accepted_source_count": 0,
+                "manual_actions_required": ["Review sources."],
+                "manual_publish_only": True,
+                "platform_publish_api_called": False,
+                "truth_social_direct_scraper_used": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    payload = DailyRunIndexService(tmp_path).write_index()
+    assert payload["run_count"] == 1
+    assert payload["latest"]["date"] == "2099-01-03"
+    assert payload["latest"]["manual_actions_count"] == 1
+    assert (tmp_path / "index.json").exists()
+    assert (tmp_path / "latest.json").exists()
+
+
+def test_daily_run_index_api_lists_latest(client):
+    run_dir = Path("exports/daily_runs/2099-01-04")
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "daily_run_report.json").write_text(
+            json.dumps(
+                {
+                    "date": "2099-01-04",
+                    "mode": "dry-run",
+                    "feed_mode": "remote",
+                    "generated_at": "2099-01-04T08:00:00+00:00",
+                    "feed_item_count": 1,
+                    "accepted_source_count": 0,
+                    "manual_actions_required": ["Review daily feed sources."],
+                    "manual_publish_only": True,
+                    "platform_publish_api_called": False,
+                    "truth_social_direct_scraper_used": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        index = client.get("/daily-runs")
+        assert index.status_code == 200
+        assert any(run["date"] == "2099-01-04" for run in index.json()["runs"])
+        latest = client.get("/daily-runs/latest")
+        assert latest.status_code == 200
+        payload = latest.json()
+        assert payload["latest"]["date"] == "2099-01-04"
+        assert payload["manual_publish_only"] is True
+        assert payload["platform_publish_api_called"] is False
+        assert payload["truth_social_direct_scraper_used"] is False
+    finally:
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
+
+
+def test_daily_orchestrator_remote_blocked_readiness_stops_intake(tmp_path):
+    from app.jobs.daily_run_orchestrator import run_daily
+
+    config = tmp_path / "remote_source_feeds.yaml"
+    config.write_text(
+        """
+feeds:
+  - name: sample-public-archive-json
+    enabled: true
+    feed_url: https://truthsocial.com/@realDonaldTrump/rss
+    parser: rss
+defaults:
+  max_items: 5
+""",
+        encoding="utf-8",
+    )
+    report = run_daily("2026-06-13", "dry-run", str(config), str(tmp_path / "out"), feed_mode="remote")
+    assert report["publish_readiness"] == "blocked"
+    assert report["created_source_count"] == 0
+    assert "sample-public-archive-json:direct_truth_social_feed_forbidden" in report["blockers"]
+
+
+def test_daily_orchestrator_local_auto_works_only_local_test(tmp_path, monkeypatch):
+    from app.jobs.daily_run_orchestrator import run_daily
+
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("AUTH_MODE", "header_stub")
+    report = run_daily("2026-06-13", "local-auto", "data/feeds/daily_truth_feed.json", str(tmp_path / "local"))
+    assert report["mode"] == "local-auto"
+    assert report["final_video_path"] and Path(report["final_video_path"]).exists()
+    assert report["platform_package_path"] and Path(report["platform_package_path"]).exists()
+    assert report["manual_publish_only"] is True
+
+
+def test_daily_orchestrator_rejects_local_auto_in_staging(monkeypatch):
+    from app.jobs.daily_run_orchestrator import run_daily
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("AUTH_MODE", "external")
+    with pytest.raises(SystemExit):
+        run_daily("2026-06-13", "local-auto", "data/feeds/daily_truth_feed.json")
+
+
+def test_auto_topic_selector_rejects_weak_evidence_high_risk_topic():
+    topic = {
+        "id": 1,
+        "title": "High risk weak evidence",
+        "selected_post_ids": [1],
+        "evidence_score": 0.1,
+        "risk_score": 0.9,
+        "platform_fit_score": 0.8,
+        "priority_score": 0.8,
+        "rationale": {"freshness": 1.0},
+    }
+    decision = AutoTopicSelector().select([topic])
+    assert decision["selected_topic"] is None
+    assert decision["candidates"][0]["auto_selection_status"] == "blocked"
+
+
+def test_daily_run_report_and_manual_actions_endpoint(client, tmp_path):
+    report_dir = Path("exports/daily_runs/2099-01-01")
+    if report_dir.exists():
+        shutil.rmtree(report_dir)
+    try:
+        report_dir.mkdir(parents=True, exist_ok=True)
+        (report_dir / "daily_run_report.json").write_text(
+            json.dumps(
+                {
+                    "date": "2099-01-01",
+                    "mode": "dry-run",
+                    "manual_actions_required": ["Review pending sources."],
+                    "final_packages_needing_human_publish_decision": [],
+                    "manual_publish_only": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+        summary = client.get("/daily-runs/2099-01-01/summary")
+        assert summary.status_code == 200
+        actions = client.get("/daily-runs/2099-01-01/manual-actions")
+        assert actions.status_code == 200
+        assert "sources_needing_review" in actions.json()
+        assert actions.json()["manual_publish_only"] is True
+    finally:
+        if report_dir.exists():
+            shutil.rmtree(report_dir)
+
+
+def test_scheduler_disabled_by_default(monkeypatch):
+    from app.scheduler import create_scheduler
+
+    monkeypatch.delenv("DAILY_RUN_ENABLED", raising=False)
+    scheduler = create_scheduler()
+    assert scheduler.get_jobs() == []
+
+
+def test_platform_publish_api_remains_disabled_for_daily_run(client):
+    response = client.get("/health/security")
+    assert response.status_code == 200
+    assert response.json()["platform_publish_api_enabled"] is False
+    assert response.json()["manual_publish_only"] is True
 
 
 def test_safety_regression_fixtures_pass(client):

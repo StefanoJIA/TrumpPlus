@@ -2,7 +2,7 @@
 
 Daily Truth Brief is a compliant material-package and preview-video generator for neutral Chinese short-video briefs about public political social-media signals. It is not a reposting account, political propaganda tool, campaign persuasion tool, or automated publishing system.
 
-Phase 2.7 adds first-sample input support and template QA for script readability, subtitle timing, visual cards, and manual-publish readiness. The system still does not auto-publish, scrape Truth Social, perform unbounded web crawling, clone voices, generate lip-sync video, create fake screenshots, or use unauthorized news images.
+Phase 2.8 adds a near-fully automated internal daily run that reads allowlisted feed JSON, fills review queues, suggests evidence, and can produce local/test preview video and platform packages while keeping final publishing manual. The system still does not auto-publish, scrape Truth Social, perform unbounded web crawling, clone voices, generate lip-sync video, create fake screenshots, or use unauthorized news images.
 
 ## Compliance Boundaries
 
@@ -1452,6 +1452,205 @@ docs/FIRST_SAMPLE_CHECKLIST.md
 This checklist covers manual source collection, `pilot_input.json`, `pilot_run.py`, final video review, platform package review, blocked conditions, Episode 0 internal sample criteria, and manual publishing criteria.
 
 The standing boundaries remain unchanged: manual publish only, no platform publishing API, no direct Truth Social scraper, no voice impersonation, no lip sync, no fake screenshots, and no unauthorized news imagery.
+
+## Phase 2.8 Near-Fully Automated Daily Run
+
+Phase 2.8 adds an internal daily run for near-daily production. It reads allowlisted public archive/manual feed JSON or allowlisted public RSS/Atom/JSON feeds, creates source review items, ranks topics, suggests evidence links, and in local/test can generate a preview video and platform package. It still stops short of publishing and keeps final platform upload as a human decision.
+
+### Daily Feed JSON
+
+Default input:
+
+```text
+data/feeds/daily_truth_feed.json
+```
+
+Shape:
+
+```json
+{
+  "feed_date": "2026-06-13",
+  "items": [
+    {
+      "source_name": "sample-public-archive-json",
+      "source_url": "https://example.org/source",
+      "archive_url": "https://example.org/archive",
+      "retrieved_at": "2026-06-13T12:00:00Z",
+      "short_excerpt": "Short human-entered excerpt.",
+      "source_type": "public_archive",
+      "topic_hint": "Neutral topic hint",
+      "why_it_matters": "Why it matters for neutral coverage.",
+      "source_confidence": "medium"
+    }
+  ]
+}
+```
+
+`app/sources/daily_feed_json.py` does not fetch webpages, does not log in, does not crawl Truth Social, and rejects non-allowlisted `source_name` values. Every item becomes a `SourceReviewItem` with `human_status=pending` unless the local/test orchestrator explicitly runs local-auto.
+
+### Allowlisted Remote Feed
+
+Optional remote/public feed config:
+
+```text
+app/config/remote_source_feeds.yaml
+```
+
+The remote feed adapter supports RSS, Atom, and JSON feed documents from explicitly allowlisted feed names:
+
+```yaml
+feeds:
+  - name: sample-public-archive-json
+    enabled: true
+    feed_url: data/feeds/remote_feed_sample.xml
+    parser: rss
+    source_type: public_archive
+    require_item_date_match: true
+    date_window_days: 0
+    require_topic_keyword_match: true
+    topic_keywords:
+      - trump
+      - donald trump
+      - truth social
+    exclude_keywords:
+      - sports
+```
+
+Run a remote-feed dry run:
+
+```bash
+python -m app.jobs.daily_run_orchestrator --date today --mode dry-run --feed-mode remote --feed app/config/remote_source_feeds.yaml
+```
+
+`app/sources/remote_feed.py` reads only the feed document. It does not fetch linked article pages, does not log in, does not bypass rate limits, and blocks direct `truthsocial.com` feed or item URLs. Each item is stored as a short-excerpt `SourceReviewItem` with `human_status=pending`, so a human reviewer still decides whether it can become evidence and enter the brief pipeline.
+
+Before using a real public feed, run the readiness gate:
+
+```bash
+python -m app.jobs.daily_run_orchestrator --feed-mode remote --feed app/config/remote_source_feeds.yaml --check-feed-readiness
+```
+
+Or through the API:
+
+```text
+POST /sources/remote-feed/readiness
+```
+
+The readiness report checks allowlist membership, blocked domains, direct Truth Social URLs, parser support, preview item URLs, short excerpt availability, and whether items will enter `SourceReviewItem` instead of bypassing review. A blocked readiness report stops remote daily-run intake before any source review items are created.
+
+For daily production, configure freshness and topical filters:
+
+- `require_item_date_match=true` keeps only items whose feed timestamp falls within `date_window_days` of the run date.
+- `require_topic_keyword_match=true` keeps only items whose title, excerpt, summary, or URL contains a configured topic keyword.
+- `exclude_keywords` removes known off-topic feed entries before source review intake.
+
+The adapter records `filter_report` in API responses and `feed_filter_report` in daily run reports, including raw item count, kept item count, date-filtered count, topic-filtered count, and exclusion-filtered count.
+
+### Orchestrator
+
+Dry run:
+
+```bash
+python -m app.jobs.daily_run_orchestrator --date today --mode dry-run
+```
+
+Remote-feed dry run:
+
+```bash
+python -m app.jobs.daily_run_orchestrator --date today --mode dry-run --feed-mode remote --feed app/config/remote_source_feeds.yaml
+```
+
+Local/test auto run:
+
+```bash
+python -m app.jobs.daily_run_orchestrator --date today --mode local-auto
+```
+
+Flow:
+
+```text
+daily feed
+  -> source review queue
+  -> optional local/test source approve
+  -> promote-to-post-and-evidence
+  -> topic generation
+  -> auto topic selection guard
+  -> brief generation
+  -> evidence link suggestions
+  -> optional local/test evidence links
+  -> FactCheckQualityGate
+  -> optional local/test reviewer approval
+  -> render package
+  -> final_video.mp4
+  -> platform package
+  -> daily_run_report
+```
+
+Output:
+
+```text
+exports/daily_runs/{date}/
+  daily_run_report.json
+  DAILY_RUN_REPORT.md
+exports/daily_runs/index.json
+exports/daily_runs/latest.json
+```
+
+Each daily run refreshes `index.json` and `latest.json`. These files summarize recent runs, latest `final_video_path`, latest `platform_package_path`, manual action count, blockers, warnings, and the standing compliance flags.
+
+### Modes
+
+- `dry-run`: ingests feed items into review queue and reports manual actions. It does not approve sources, approve briefs, render, generate platform packages, or publish.
+- `local-auto`: allowed only when `/health/security` reports `APP_ENV=local` or `APP_ENV=test`. It can auto-approve local/test sources, auto-link low-risk evidence suggestions, approve if FactCheckQualityGate passes, render video, and generate platform package.
+- staging/production: `local-auto` is rejected. Human reviewers must approve sources, evidence, and briefs. Final publish remains outside the system.
+
+### Manual Actions Queue
+
+Endpoints:
+
+```text
+GET /daily-runs
+GET /daily-runs/latest
+GET /daily-runs/{date}/summary
+GET /daily-runs/{date}/manual-actions
+GET /daily-runs/{date}/page
+```
+
+Manual actions include:
+
+- sources needing review;
+- evidence needing review;
+- claims needing evidence;
+- briefs needing approval;
+- final packages needing human publish decision.
+
+The daily run page has no publish button.
+
+`GET /daily-runs/latest` is the quickest way for an operator or dashboard to find the newest run, whether it stopped at source review, produced a local/test preview video, or generated a manual platform package.
+
+### Scheduled Dry Run
+
+Scheduler environment variables:
+
+```text
+DAILY_RUN_ENABLED=false
+DAILY_RUN_MODE=dry-run
+DAILY_RUN_HOUR=8
+```
+
+The scheduler is disabled by default. Even when enabled, it cannot publish. `DAILY_RUN_MODE=local-auto` is forbidden in staging/production.
+
+### Auto Topic Selection Guard
+
+`app/services/auto_topic_selector.py` scores source count, evidence strength, public importance, scriptability, risk level, and novelty. High-risk weak-evidence topics are blocked; opinion-only/no-evidence topics are downranked.
+
+Remote-feed daily run reports include `feed_readiness`. This is intended for real operations where the source feed may change or be reconfigured; the report makes unsafe configuration visible before the pipeline can generate brief/video/package artifacts.
+
+Daily run reports also include `feed_filter_report`, so editors can see whether a quiet day means there were no feed items, no same-day items, no Trump-related items, or only excluded/off-topic entries.
+
+### Why Boundaries Remain
+
+The daily run is an internal production accelerator, not a publishing robot or scraper. Direct Truth Social scraping, login-wall bypass, large text mirrors, automated platform posting, political voice imitation, lip sync, fake screenshots, and unauthorized news images remain prohibited.
 
 ## Remotion Stub
 

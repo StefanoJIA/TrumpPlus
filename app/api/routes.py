@@ -49,11 +49,13 @@ from app.models import (
 from app.renderers.ffmpeg_renderer import FFMpegRenderer
 from app.sources.manual_archive import ManualArchiveAdapter
 from app.services.claim_extractor import ClaimExtractor
+from app.services.daily_run_index import DailyRunIndexService
 from app.services.dedup import DedupService
 from app.services.evidence_pack_service import EvidencePackService
 from app.services.evidence_link_suggester import EvidenceLinkSuggester
 from app.services.editorial_qa_reporter import EditorialQAReporter
 from app.services.fact_check_quality_gate import FactCheckQualityGate
+from app.services.feed_readiness_validator import FeedReadinessValidator
 from app.services.evidence_query_builder import EvidenceQueryBuilder
 from app.services.evidence_report_builder import EvidenceReportBuilder
 from app.services.platform_package_builder import PlatformPackageBuilder
@@ -74,6 +76,8 @@ from app.services.voice_qa import VoiceQA
 from app.services.workspace_service import WorkspaceService
 from app.sources.manual_url import ManualUrlAdapter
 from app.sources.public_archive_json import PublicArchiveJsonAdapter
+from app.sources.daily_feed_json import DailyFeedJsonAdapter
+from app.sources.remote_feed import RemoteFeedAdapter
 from app.sources.registry import SourceAdapterRegistry
 from app.evidence.registry import default_registry
 from app.external_search.registry import ExternalSearchProviderRegistry
@@ -126,6 +130,15 @@ class ManualUrlIngestRequest(BaseModel):
 
 class PublicArchiveJsonIngestRequest(BaseModel):
     path: str = Field(default="data/public_archive_sample.json")
+
+
+class DailyFeedJsonIngestRequest(BaseModel):
+    path: str = Field(default="data/feeds/daily_truth_feed.json")
+
+
+class RemoteFeedIngestRequest(BaseModel):
+    config_path: str = Field(default="app/config/remote_source_feeds.yaml")
+    run_date: str | None = None
 
 
 class SourceReviewActionRequest(BaseModel):
@@ -958,6 +971,185 @@ def health_security() -> dict[str, Any]:
     return security_health()
 
 
+@router.get("/health/truth-monitor")
+async def health_truth_monitor() -> dict[str, Any]:
+    import os
+    import sqlite3
+
+    import redis.asyncio as redis
+
+    from app.jobs import truth_scheduler
+    from storage import db as truth_storage
+
+    redis_status = "error"
+    client = redis.from_url(
+        os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+        socket_connect_timeout=0.2,
+        socket_timeout=0.2,
+        decode_responses=True,
+    )
+    try:
+        await client.ping()
+        redis_status = "ok"
+    except Exception:  # noqa: BLE001
+        redis_status = "error"
+    finally:
+        await client.aclose()
+
+    db_status = "error"
+    total_count = 0
+    injected_count = 0
+    try:
+        if truth_storage.DB_PATH.exists():
+            connection = sqlite3.connect(truth_storage.DB_PATH)
+            try:
+                total_count = int(connection.execute("SELECT COUNT(*) FROM truth_posts").fetchone()[0])
+                injected_count = int(connection.execute("SELECT COUNT(*) FROM truth_posts WHERE injected = 1").fetchone()[0])
+                db_status = "ok"
+            finally:
+                connection.close()
+    except Exception:  # noqa: BLE001
+        db_status = "error"
+
+    active_scheduler = truth_scheduler.scheduler
+    scheduler_running = bool(
+        active_scheduler is not None
+        and active_scheduler.running
+        and active_scheduler.get_job("truth_monitor") is not None
+    )
+    return {
+        "redis": redis_status,
+        "db_table": db_status,
+        "last_fetched_count": total_count,
+        "last_injected_count": injected_count,
+        "scheduler_running": scheduler_running,
+    }
+
+
+def _daily_run_dir(run_date: str) -> Path:
+    resolved = dt_date.today().isoformat() if run_date == "today" else run_date
+    return Path("exports/daily_runs") / resolved
+
+
+def _daily_run_report_payload(run_date: str) -> dict[str, Any] | None:
+    path = _daily_run_dir(run_date) / "daily_run_report.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@router.get("/daily-runs/{run_date}/summary")
+def daily_run_summary(
+    run_date: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    report = _daily_run_report_payload(run_date)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Daily run report not found")
+    return {"date": report.get("date", run_date), "report": report, "manual_publish_only": True}
+
+
+@router.get("/daily-runs")
+def daily_runs_index(
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    runs = DailyRunIndexService().load_runs(limit=max(1, min(limit, 50)))
+    return {
+        "runs": runs,
+        "latest": runs[0] if runs else None,
+        "manual_publish_only": True,
+        "platform_publish_api_called": False,
+        "truth_social_direct_scraper_used": False,
+    }
+
+
+@router.get("/daily-runs/latest")
+def daily_run_latest(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    latest = DailyRunIndexService().latest()
+    if latest is None:
+        raise HTTPException(status_code=404, detail="Daily run report not found")
+    return {
+        "latest": latest,
+        "manual_publish_only": True,
+        "platform_publish_api_called": False,
+        "truth_social_direct_scraper_used": False,
+    }
+
+
+@router.get("/daily-runs/{run_date}/manual-actions")
+def daily_run_manual_actions(
+    run_date: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    workspace_id = _workspace_id(current_user)
+    report = _daily_run_report_payload(run_date) or {}
+    sources = list(
+        db.scalars(
+            select(SourceReviewItem)
+            .where(SourceReviewItem.workspace_id == workspace_id, SourceReviewItem.human_status == "pending")
+            .order_by(SourceReviewItem.id.desc())
+        ).all()
+    )
+    evidence = list(
+        db.scalars(
+            select(EvidenceItem)
+            .where(EvidenceItem.workspace_id == workspace_id, EvidenceItem.human_status == "pending")
+            .order_by(EvidenceItem.id.desc())
+        ).all()
+    )
+    briefs = list(
+        db.scalars(
+            select(BriefScript)
+            .where(BriefScript.workspace_id == workspace_id, BriefScript.status.in_(["needs_review", "pending_human_review"]))
+            .order_by(BriefScript.id.desc())
+        ).all()
+    )
+    claims_needing_evidence = []
+    for brief in briefs:
+        gate = FactCheckQualityGate().evaluate(db, brief)
+        claims_needing_evidence.extend(gate.get("missing_evidence_claims") or [])
+        claims_needing_evidence.extend(gate.get("weak_evidence_claims") or [])
+    return {
+        "date": report.get("date", dt_date.today().isoformat() if run_date == "today" else run_date),
+        "sources_needing_review": [_source_review_payload(item) for item in sources],
+        "evidence_needing_review": [_evidence_item_payload(item) for item in evidence],
+        "claims_needing_evidence": claims_needing_evidence,
+        "briefs_needing_approval": [_brief_payload(brief, db) for brief in briefs],
+        "final_packages_needing_human_publish_decision": report.get("final_packages_needing_human_publish_decision", []),
+        "manual_actions_required": report.get("manual_actions_required", []),
+        "manual_publish_only": True,
+    }
+
+
+@router.get("/daily-runs/{run_date}/page", response_class=HTMLResponse)
+def daily_run_page(
+    request: Request,
+    run_date: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> HTMLResponse:
+    report = _daily_run_report_payload(run_date)
+    actions = daily_run_manual_actions(run_date, db, current_user)
+    return templates.TemplateResponse(
+        request,
+        "daily_run.html",
+        {
+            "run_date": actions["date"],
+            "report": report,
+            "actions": actions,
+            "manual_publish_only": True,
+            "current_user": _user_payload(current_user),
+        },
+    )
+
+
 @router.get("/workspaces/current")
 def get_current_workspace(db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)) -> dict[str, Any]:
     workspace = WorkspaceService().get_workspace(db, current_user.workspace_id)
@@ -1658,6 +1850,99 @@ def ingest_public_archive_json(
         items.append(item)
     db.commit()
     return {"created_count": len(items), "items": [_source_review_payload(item) for item in items]}
+
+
+@router.post("/sources/ingest/daily-feed-json")
+def ingest_daily_feed_json(
+    request: DailyFeedJsonIngestRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    PermissionService().assert_allowed(db, current_user, PermissionService().can_generate_brief(current_user), "source_ingest_daily_feed_json")
+    path = Path(request.path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Input file not found: {request.path}")
+    adapter = DailyFeedJsonAdapter(path)
+    adapter.validate_terms_safety()
+    items = []
+    skipped = []
+    for payload in adapter.fetch_review_items():
+        existing = db.scalars(
+            select(SourceReviewItem).where(
+                SourceReviewItem.workspace_id == _workspace_id(current_user),
+                SourceReviewItem.source_url == payload["source_url"],
+            )
+        ).first()
+        if existing:
+            skipped.append(_source_review_payload(existing))
+            continue
+        item = SourceReviewItem(workspace_id=_workspace_id(current_user), **payload)
+        db.add(item)
+        db.flush()
+        _audit(db, "source_review_item", item.id, "ingest_daily_feed_json", current_user, f"Imported from {request.path}")
+        items.append(item)
+    db.commit()
+    return {
+        "created_count": len(items),
+        "skipped_count": len(skipped),
+        "items": [_source_review_payload(item) for item in items],
+        "skipped_items": skipped,
+        "manual_review_required": True,
+    }
+
+
+@router.post("/sources/ingest/remote-feed")
+def ingest_remote_feed(
+    request: RemoteFeedIngestRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    PermissionService().assert_allowed(db, current_user, PermissionService().can_generate_brief(current_user), "source_ingest_remote_feed")
+    path = Path(request.config_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Remote feed config not found: {request.config_path}")
+    adapter = RemoteFeedAdapter(path)
+    try:
+        adapter.validate_terms_safety()
+        payloads, filter_report = adapter.fetch_review_items_with_filter_report(target_date=request.run_date)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    items = []
+    skipped = []
+    for payload in payloads:
+        existing = db.scalars(
+            select(SourceReviewItem).where(
+                SourceReviewItem.workspace_id == _workspace_id(current_user),
+                SourceReviewItem.source_url == payload["source_url"],
+            )
+        ).first()
+        if existing:
+            skipped.append(_source_review_payload(existing))
+            continue
+        item = SourceReviewItem(workspace_id=_workspace_id(current_user), **payload)
+        db.add(item)
+        db.flush()
+        _audit(db, "source_review_item", item.id, "ingest_remote_feed", current_user, f"Imported from {request.config_path}")
+        items.append(item)
+    db.commit()
+    return {
+        "created_count": len(items),
+        "skipped_count": len(skipped),
+        "items": [_source_review_payload(item) for item in items],
+        "skipped_items": skipped,
+        "filter_report": filter_report,
+        "manual_review_required": True,
+    }
+
+
+@router.post("/sources/remote-feed/readiness")
+def remote_feed_readiness(
+    request: RemoteFeedIngestRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    PermissionService().assert_allowed(db, current_user, PermissionService().can_generate_brief(current_user), "remote_feed_readiness")
+    return FeedReadinessValidator().validate_remote_feed_config(request.config_path, target_date=request.run_date)
 
 
 @router.get("/sources/review-queue")

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daily Run Console</title>
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 24px; color: #202124; background: #f7f8fa; }
+      main { max-width: 1100px; margin: 0 auto; }
+      section { background: #fff; border: 1px solid #dfe3e8; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border-bottom: 1px solid #e8eaed; padding: 8px; text-align: left; vertical-align: top; }
+      .notice { padding: 10px; background: #fff7e0; border: 1px solid #f6d365; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Daily Run {{ run_date }}</h1>
+      <p class="notice">Manual publish only. This page has no publish button and does not call platform APIs.</p>
+
+      <section>
+        <h2>Status</h2>
+        <table>
+          <tr><th>Mode</th><td>{{ report.mode if report else "not_run" }}</td></tr>
+          <tr><th>Selected Topic</th><td>{{ report.selected_topic.title if report and report.selected_topic else "" }}</td></tr>
+          <tr><th>FactCheckQualityGate</th><td>{{ report.fact_check_quality_gate_status if report else "" }}</td></tr>
+          <tr><th>Final Video</th><td>{{ report.final_video_path if report else "" }}</td></tr>
+          <tr><th>Platform Package</th><td>{{ report.platform_package_path if report else "" }}</td></tr>
+          <tr><th>Publish Readiness</th><td>{{ report.publish_readiness if report else "not_ready" }}</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Manual Actions Required</h2>
+        <ul>
+          {% for item in actions.manual_actions_required %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        <p>Sources needing review: {{ actions.sources_needing_review | length }}</p>
+        <p>Evidence needing review: {{ actions.evidence_needing_review | length }}</p>
+        <p>Claims needing evidence: {{ actions.claims_needing_evidence | length }}</p>
+        <p>Briefs needing approval: {{ actions.briefs_needing_approval | length }}</p>
+        <p>Final packages needing human publish decision: {{ actions.final_packages_needing_human_publish_decision | length }}</p>
+      </section>
+
+      <section>
+        <h2>Links</h2>
+        <p><a href="/daily-runs/{{ run_date }}/summary">Summary JSON</a></p>
+        <p><a href="/daily-runs/{{ run_date }}/manual-actions">Manual Actions JSON</a></p>
+        <p><a href="/sources/review-page">Source Review Page</a></p>
+      </section>
+    </main>
+  </body>
+</html>

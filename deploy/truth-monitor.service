@@ -1,0 +1,15 @@
+# truth-monitor extension
+[Unit]
+Description=Truth Social Monitor
+After=network.target redis.service
+
+[Service]
+Type=simple
+WorkingDirectory={项目根目录占位}
+ExecStart={venv python 占位} -m app.jobs.truth_scheduler
+Restart=on-failure
+RestartSec=30
+EnvironmentFile={项目根目录占位}/.env
+
+[Install]
+WantedBy=multi-user.target
