@@ -155,6 +155,7 @@ def run_daily(
             request("topic_select", "POST", f"/editorial/topics/{topic_id}/select", "editor", {"reviewer_name": "DailyRunEditor", "reviewer_note": "local-auto selected top topic for local/test"})
             request("topic_schedule", "POST", "/editorial/calendar/schedule", "editor", {"topic_id": topic_id, "reviewer_name": "DailyRunEditor", "reviewer_note": "local-auto schedule"})
             brief = request("start_production", "POST", f"/editorial/topics/{topic_id}/start-production", "editor", {"reviewer_name": "DailyRunEditor", "reviewer_note": "local-auto start production"})
+            evidence_ids.extend(_existing_evidence_ids_for_posts(selected_topic.get("selected_post_ids") or []))
             suggestions = request("evidence_link_suggestions", "GET", f"/briefs/{brief['id']}/evidence-link-suggestions", "viewer")
             linked_count = 0
             for suggestion in suggestions.get("suggestions", []):
@@ -235,6 +236,30 @@ def _write_report(report: dict[str, Any], output_dir: str | None) -> None:
     (root / "DAILY_RUN_REPORT.md").write_text(_markdown(report), encoding="utf-8")
     if output_dir is None:
         DailyRunIndexService().write_index()
+
+
+def _existing_evidence_ids_for_posts(post_ids: list[int]) -> list[int]:
+    if not post_ids:
+        return []
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import EvidenceItem
+
+    db = SessionLocal()
+    try:
+        return list(
+            db.scalars(
+                select(EvidenceItem.id).where(
+                    EvidenceItem.post_id.in_(post_ids),
+                    EvidenceItem.human_status == "approved",
+                )
+            ).all()
+        )
+    except Exception:  # noqa: BLE001 - optional local-auto enhancement; keep base flow working.
+        return []
+    finally:
+        db.close()
 
 
 def _markdown(report: dict[str, Any]) -> str:
